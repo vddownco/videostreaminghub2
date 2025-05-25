@@ -1,0 +1,557 @@
+{% extends "base.html" %}
+
+{% block title %}{{ video.title }} - VideoStreamingHub{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Video Player Column -->
+    <div class="col-lg-8">
+        <!-- Video Player -->
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-body p-0">
+                <div class="video-container">
+                    <video id="video-player" controls autoplay>
+                        <source src="/videos/file/{{ video.file_path }}" type="video/mp4">
+                        Your browser does not support the video tag.
+                    </video>
+                </div>
+                <div class="p-3">
+                    <h3>{{ video.title }}</h3>
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div>
+                            <span id="view-count" class="text-muted me-3">{{ video.views }} views</span>
+                            <span class="text-muted">{{ video.created_at.strftime('%b %d, %Y') }}</span>
+                        </div>
+                        <div>
+                            <button id="like-btn" class="btn btn-sm btn-outline-primary me-2">
+                                <i class="fas fa-thumbs-up me-1"></i> <span id="like-count">0</span>
+                            </button>
+                            <button id="share-btn" class="btn btn-sm btn-outline-secondary">
+                                <i class="fas fa-share me-1"></i> Share
+                            </button>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="d-flex mb-3">
+                        <a href="/users/{{ video.uploader.username }}" class="text-decoration-none">
+                            <img src="/static/profile_pictures/{{ video.uploader.profile_picture or 'default.jpg' }}" 
+                                 class="rounded-circle me-3" width="48" height="48" alt="{{ video.uploader.username }}">
+                        </a>
+                        <div>
+                            <a href="/users/{{ video.uploader.username }}" class="text-decoration-none text-dark">
+                                <h5 class="mb-0">{{ video.uploader.username }}</h5>
+                            </a>
+                            <div id="subscriber-count" class="text-muted small">0 subscribers</div>
+                            <button id="subscribe-btn" class="btn btn-sm btn-danger mt-2">Subscribe</button>
+                        </div>
+                    </div>
+                    <div class="bg-light p-3 rounded">
+                        <div id="description" class="mb-0">{{ video.description or 'No description provided.' }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Comments Section -->
+        <div class="card border-0 shadow-sm">
+            <div class="card-body">
+                <h4 class="mb-3">Comments <span id="comment-count" class="text-muted">(0)</span></h4>
+                
+                <!-- Comment Form -->
+                <div class="d-flex mb-4">
+                    <img id="user-avatar" src="/static/profile_pictures/default.jpg" 
+                         class="rounded-circle me-3" width="40" height="40" alt="Your Avatar">
+                    <div class="flex-grow-1">
+                        <form id="comment-form">
+                            <div class="mb-3">
+                                <textarea id="comment-text" class="form-control" rows="2" placeholder="Add a comment..."></textarea>
+                            </div>
+                            <div class="d-flex justify-content-end">
+                                <button type="button" class="btn btn-secondary me-2" id="cancel-comment">Cancel</button>
+                                <button type="submit" class="btn btn-primary" id="submit-comment">Comment</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+                
+                <!-- Comments List -->
+                <div id="comments-container">
+                    <!-- Comments will be loaded dynamically -->
+                    <div class="text-center py-5">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading comments...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recommendations Column -->
+    <div class="col-lg-4">
+        <h4 class="mb-3">Recommended Videos</h4>
+        <div id="recommendations">
+            <!-- Recommendations will be loaded dynamically -->
+            <div class="text-center py-5">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading recommendations...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Initialize video player with watch history
+    document.addEventListener('DOMContentLoaded', function() {
+        const videoPlayer = document.getElementById('video-player');
+        const videoId = {{ video.id }};
+        
+        // Update watch history periodically
+        videoPlayer.addEventListener('timeupdate', function() {
+            // Update watch history every 5 seconds
+            if (Math.floor(videoPlayer.currentTime) % 5 === 0) {
+                updateWatchHistory(videoId, Math.floor(videoPlayer.currentTime));
+            }
+        });
+        
+        // Get saved position from watch history
+        if (isLoggedIn()) {
+            apiRequest(`/videos/${videoId}/watch-history`)
+                .then(response => {
+                    if (response.ok) return response.json();
+                    return null;
+                })
+                .then(data => {
+                    if (data && data.timestamp > 0) {
+                        // If the saved position is more than 10 seconds
+                        if (data.timestamp > 10) {
+                            // Ask user if they want to resume
+                            if (confirm(`Resume from ${formatDuration(data.timestamp)}?`)) {
+                                videoPlayer.currentTime = data.timestamp;
+                            }
+                        }
+                    }
+                })
+                .catch(error => console.error('Error fetching watch history:', error));
+        }
+        
+        // Load comments
+        loadComments(videoId);
+        
+        // Load recommendations
+        loadRecommendations(videoId);
+        
+        // Check if user has liked the video
+        if (isLoggedIn()) {
+            checkLikeStatus(videoId);
+            checkSubscriptionStatus('{{ video.uploader.username }}');
+        }
+        
+        // Get subscriber count
+        getSubscriberCount('{{ video.uploader.username }}');
+        
+        // Set up like button event
+        document.getElementById('like-btn').addEventListener('click', function() {
+            if (!isLoggedIn()) {
+                alert('Please log in to like videos');
+                return;
+            }
+            
+            const isLiked = this.classList.contains('btn-primary');
+            
+            if (isLiked) {
+                unlikeVideo(videoId);
+            } else {
+                likeVideo(videoId);
+            }
+        });
+        
+        // Set up subscribe button event
+        document.getElementById('subscribe-btn').addEventListener('click', function() {
+            if (!isLoggedIn()) {
+                alert('Please log in to subscribe');
+                return;
+            }
+            
+            const isSubscribed = this.classList.contains('btn-secondary');
+            
+            if (isSubscribed) {
+                unsubscribe('{{ video.uploader.username }}');
+            } else {
+                subscribe('{{ video.uploader.username }}');
+            }
+        });
+        
+        // Set up comment form
+        document.getElementById('comment-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            if (!isLoggedIn()) {
+                alert('Please log in to comment');
+                return;
+            }
+            
+            const commentText = document.getElementById('comment-text').value.trim();
+            
+            if (commentText) {
+                submitComment(videoId, commentText);
+            }
+        });
+    });
+    
+    // Update watch history
+    async function updateWatchHistory(videoId, timestamp) {
+        if (!isLoggedIn()) return;
+        
+        try {
+            await apiRequest(`/videos/${videoId}/watch-history`, {
+                method: 'POST',
+                body: JSON.stringify({
+                    video_id: videoId,
+                    timestamp: timestamp
+                })
+            });
+        } catch (error) {
+            console.error('Error updating watch history:', error);
+        }
+    }
+    
+    // Load comments
+    async function loadComments(videoId) {
+        try {
+            const response = await fetch(`/videos/${videoId}/comments`);
+            const comments = await response.json();
+            
+            const commentsContainer = document.getElementById('comments-container');
+            
+            if (comments.length === 0) {
+                commentsContainer.innerHTML = `
+                    <div class="text-center py-3">
+                        <p class="text-muted">No comments yet. Be the first to comment!</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            commentsContainer.innerHTML = '';
+            
+            comments.forEach(comment => {
+                const commentElement = createCommentElement(comment);
+                commentsContainer.appendChild(commentElement);
+            });
+            
+            // Update comment count
+            document.getElementById('comment-count').textContent = `(${comments.length})`;
+            
+        } catch (error) {
+            console.error('Error loading comments:', error);
+            document.getElementById('comments-container').innerHTML = `
+                <div class="text-center py-3">
+                    <p class="text-danger">Failed to load comments</p>
+                </div>
+            `;
+        }
+    }
+    
+    // Create comment element
+    function createCommentElement(comment) {
+        const div = document.createElement('div');
+        div.className = 'comment-item';
+        
+        const timeAgo = getTimeAgo(new Date(comment.created_at));
+        
+        div.innerHTML = `
+            <div class="d-flex mb-3">
+                <a href="/users/${comment.user.username}" class="text-decoration-none">
+                    <img src="/static/profile_pictures/${comment.user.profile_picture || 'default.jpg'}" 
+                         class="rounded-circle me-3" width="40" height="40" alt="${comment.user.username}">
+                </a>
+                <div>
+                    <div class="d-flex align-items-center">
+                        <a href="/users/${comment.user.username}" class="text-decoration-none text-dark me-2">
+                            <strong>${comment.user.username}</strong>
+                        </a>
+                        <small class="text-muted">${timeAgo}</small>
+                    </div>
+                    <p class="mb-1">${comment.content}</p>
+                    <div>
+                        <button class="btn btn-sm text-muted">
+                            <i class="fas fa-thumbs-up me-1"></i> <span>${comment.likes_count || 0}</span>
+                        </button>
+                        <button class="btn btn-sm text-muted reply-btn" data-comment-id="${comment.id}">
+                            <i class="fas fa-reply me-1"></i> Reply
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        return div;
+    }
+    
+    // Submit a comment
+    async function submitComment(videoId, content) {
+        try {
+            const response = await apiRequest(`/videos/${videoId}/comments`, {
+                method: 'POST',
+                body: JSON.stringify({
+                    content: content,
+                    video_id: videoId
+                })
+            });
+            
+            if (response.ok) {
+                // Clear the comment form
+                document.getElementById('comment-text').value = '';
+                
+                // Reload comments
+                loadComments(videoId);
+            } else {
+                alert('Failed to submit comment');
+            }
+        } catch (error) {
+            console.error('Error submitting comment:', error);
+            alert('Failed to submit comment');
+        }
+    }
+    
+    // Load recommended videos
+    async function loadRecommendations(currentVideoId) {
+        try {
+            // Get latest videos as recommendations
+            const response = await fetch('/search/latest?limit=10');
+            const videos = await response.json();
+            
+            // Filter out the current video
+            const filteredVideos = videos.filter(video => video.id !== currentVideoId);
+            
+            const recommendationsContainer = document.getElementById('recommendations');
+            
+            if (filteredVideos.length === 0) {
+                recommendationsContainer.innerHTML = `
+                    <div class="text-center py-3">
+                        <p class="text-muted">No recommendations available</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            recommendationsContainer.innerHTML = '';
+            
+            filteredVideos.forEach(video => {
+                const videoCard = createRecommendationCard(video);
+                recommendationsContainer.appendChild(videoCard);
+            });
+            
+        } catch (error) {
+            console.error('Error loading recommendations:', error);
+            document.getElementById('recommendations').innerHTML = `
+                <div class="text-center py-3">
+                    <p class="text-danger">Failed to load recommendations</p>
+                </div>
+            `;
+        }
+    }
+    
+    // Create recommendation card
+    function createRecommendationCard(video) {
+        const div = document.createElement('div');
+        div.className = 'card mb-3 border-0 shadow-sm recommendation-card';
+        
+        // Format video duration
+        const formattedDuration = formatDuration(video.duration);
+        
+        // Format view count
+        const formattedViews = formatViewCount(video.views);
+        
+        // Calculate time ago
+        const timeAgo = getTimeAgo(new Date(video.created_at));
+        
+        div.innerHTML = `
+            <div class="row g-0">
+                <div class="col-5 position-relative">
+                    <a href="/video/${video.id}">
+                        <img src="/videos/thumbnail/${video.thumbnail_path}" class="img-fluid rounded-start" alt="${video.title}">
+                        <span class="position-absolute bottom-0 end-0 bg-dark text-white py-1 px-2 m-1 rounded small">${formattedDuration}</span>
+                    </a>
+                </div>
+                <div class="col-7">
+                    <div class="card-body py-0 px-2">
+                        <h6 class="card-title mb-0">
+                            <a href="/video/${video.id}" class="text-decoration-none text-dark">${video.title}</a>
+                        </h6>
+                        <p class="card-text mb-0">
+                            <a href="/users/${video.uploader.username}" class="text-decoration-none text-muted small">${video.uploader.username}</a>
+                        </p>
+                        <p class="card-text">
+                            <small class="text-muted">${formattedViews} • ${timeAgo}</small>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        return div;
+    }
+    
+    // Check if the user has liked the video
+    async function checkLikeStatus(videoId) {
+        try {
+            const userData = getUserData();
+            if (!userData) return;
+            
+            const response = await apiRequest(`/users/me`);
+            if (response.ok) {
+                const user = await response.json();
+                
+                // Check if the video is in the user's liked videos
+                const isLiked = user.liked_videos && user.liked_videos.some(v => v.id === videoId);
+                
+                const likeBtn = document.getElementById('like-btn');
+                
+                if (isLiked) {
+                    likeBtn.classList.remove('btn-outline-primary');
+                    likeBtn.classList.add('btn-primary');
+                }
+            }
+        } catch (error) {
+            console.error('Error checking like status:', error);
+        }
+    }
+    
+    // Like a video
+    async function likeVideo(videoId) {
+        try {
+            const response = await apiRequest(`/videos/${videoId}/like`, {
+                method: 'POST'
+            });
+            
+            if (response.ok) {
+                const likeBtn = document.getElementById('like-btn');
+                likeBtn.classList.remove('btn-outline-primary');
+                likeBtn.classList.add('btn-primary');
+                
+                // Update like count
+                const likeCount = document.getElementById('like-count');
+                likeCount.textContent = (parseInt(likeCount.textContent) + 1);
+            }
+        } catch (error) {
+            console.error('Error liking video:', error);
+        }
+    }
+    
+    // Unlike a video
+    async function unlikeVideo(videoId) {
+        try {
+            const response = await apiRequest(`/videos/${videoId}/unlike`, {
+                method: 'POST'
+            });
+            
+            if (response.ok) {
+                const likeBtn = document.getElementById('like-btn');
+                likeBtn.classList.remove('btn-primary');
+                likeBtn.classList.add('btn-outline-primary');
+                
+                // Update like count
+                const likeCount = document.getElementById('like-count');
+                likeCount.textContent = Math.max(0, parseInt(likeCount.textContent) - 1);
+            }
+        } catch (error) {
+            console.error('Error unliking video:', error);
+        }
+    }
+    
+    // Check if the user is subscribed to the channel
+    async function checkSubscriptionStatus(username) {
+        try {
+            const userData = getUserData();
+            if (!userData || username === userData.username) {
+                // Hide subscribe button if it's the user's own channel
+                const subscribeBtn = document.getElementById('subscribe-btn');
+                subscribeBtn.style.display = 'none';
+                return;
+            }
+            
+            const response = await apiRequest(`/users/me`);
+            if (response.ok) {
+                const user = await response.json();
+                
+                // Check if the user is subscribed to the channel
+                const isSubscribed = user.subscriptions && user.subscriptions.some(sub => sub.username === username);
+                
+                const subscribeBtn = document.getElementById('subscribe-btn');
+                
+                if (isSubscribed) {
+                    subscribeBtn.textContent = 'Subscribed';
+                    subscribeBtn.classList.remove('btn-danger');
+                    subscribeBtn.classList.add('btn-secondary');
+                }
+            }
+        } catch (error) {
+            console.error('Error checking subscription status:', error);
+        }
+    }
+    
+    // Get subscriber count
+    async function getSubscriberCount(username) {
+        try {
+            const response = await fetch(`/users/${username}`);
+            if (response.ok) {
+                const user = await response.json();
+                
+                // Update subscriber count
+                const subscriberCount = document.getElementById('subscriber-count');
+                const count = user.subscribers ? user.subscribers.length : 0;
+                subscriberCount.textContent = count === 1 ? '1 subscriber' : `${count} subscribers`;
+            }
+        } catch (error) {
+            console.error('Error getting subscriber count:', error);
+        }
+    }
+    
+    // Subscribe to a channel
+    async function subscribe(username) {
+        try {
+            const response = await apiRequest(`/users/${username}/subscribe`, {
+                method: 'POST'
+            });
+            
+            if (response.ok) {
+                const subscribeBtn = document.getElementById('subscribe-btn');
+                subscribeBtn.textContent = 'Subscribed';
+                subscribeBtn.classList.remove('btn-danger');
+                subscribeBtn.classList.add('btn-secondary');
+                
+                // Update subscriber count
+                getSubscriberCount(username);
+            }
+        } catch (error) {
+            console.error('Error subscribing to channel:', error);
+        }
+    }
+    
+    // Unsubscribe from a channel
+    async function unsubscribe(username) {
+        try {
+            const response = await apiRequest(`/users/${username}/unsubscribe`, {
+                method: 'POST'
+            });
+            
+            if (response.ok) {
+                const subscribeBtn = document.getElementById('subscribe-btn');
+                subscribeBtn.textContent = 'Subscribe';
+                subscribeBtn.classList.remove('btn-secondary');
+                subscribeBtn.classList.add('btn-danger');
+                
+                // Update subscriber count
+                getSubscriberCount(username);
+            }
+        } catch (error) {
+            console.error('Error unsubscribing from channel:', error);
+        }
+    }
+</script>
+{% endblock %} 

@@ -1,0 +1,410 @@
+{% extends "base.html" %}
+
+{% block title %}Upload Video - VideoStreamingHub{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body p-4">
+                <h2 class="mb-4">Upload a Video</h2>
+                
+                <div id="upload-alert" class="alert alert-danger d-none mb-4"></div>
+                
+                <form id="upload-form" enctype="multipart/form-data" novalidate>
+                    <!-- Video Upload Section -->
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">Video File</label>
+                        <div id="video-drop-area" class="file-drop-area mb-3">
+                            <div id="video-drop-message">
+                                <i class="fas fa-cloud-upload-alt fa-3x mb-3 text-primary"></i>
+                                <p>Drag and drop your video here or click to browse</p>
+                                <p class="text-muted small">Supported formats: MP4, WebM, AVI, MOV (Max 100MB)</p>
+                            </div>
+                            <div id="video-preview" class="d-none">
+                                <video id="video-preview-player" controls class="upload-preview mb-2"></video>
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div id="video-info" class="text-muted small"></div>
+                                    <button type="button" id="change-video" class="btn btn-sm btn-outline-secondary">Change</button>
+                                </div>
+                            </div>
+                            <input type="file" id="video-input" name="video_file" accept="video/*" class="d-none">
+                        </div>
+                    </div>
+                    
+                    <!-- Thumbnail Upload Section -->
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">Thumbnail Image (Optional)</label>
+                        <div id="thumbnail-drop-area" class="file-drop-area mb-3">
+                            <div id="thumbnail-drop-message">
+                                <i class="fas fa-image fa-3x mb-3 text-primary"></i>
+                                <p>Drag and drop your thumbnail here or click to browse</p>
+                                <p class="text-muted small">Supported formats: JPG, PNG, WebP (Recommended: 1280x720)</p>
+                                <p class="text-muted">If you don't upload a thumbnail, one will be generated from your video</p>
+                            </div>
+                            <div id="thumbnail-preview" class="d-none">
+                                <img id="thumbnail-preview-img" class="upload-preview mb-2" alt="Thumbnail preview">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div id="thumbnail-info" class="text-muted small"></div>
+                                    <button type="button" id="change-thumbnail" class="btn btn-sm btn-outline-secondary">Change</button>
+                                </div>
+                            </div>
+                            <input type="file" id="thumbnail-input" name="thumbnail_file" accept="image/*" class="d-none">
+                        </div>
+                    </div>
+                    
+                    <!-- Video Details Section -->
+                    <div class="mb-4">
+                        <label for="title" class="form-label fw-bold">Title</label>
+                        <input type="text" class="form-control" id="title" name="title" maxlength="100">
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label for="description" class="form-label fw-bold">Description</label>
+                        <textarea class="form-control" id="description" name="description" rows="4" maxlength="5000"></textarea>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="is_private" name="is_private">
+                            <label class="form-check-label" for="is_private">
+                                Private video (only you can view)
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <!-- Upload Progress -->
+                    <div id="progress-container" class="mb-4 d-none">
+                        <label class="form-label">Upload Progress</label>
+                        <div class="progress">
+                            <div id="upload-progress" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
+                        </div>
+                        <div id="progress-status" class="text-center mt-2">Preparing upload...</div>
+                    </div>
+                    
+                    <!-- Submit Button -->
+                    <div class="d-grid gap-2">
+                        <button type="submit" id="upload-button" class="btn btn-primary">Upload Video</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Check if user is logged in
+        if (!AUTH.isLoggedIn()) {
+            window.location.href = '/login?redirect=/upload';
+            return;
+        }
+        
+        // Variables to store files
+        let videoFile = null;
+        let thumbnailFile = null;
+        
+        // Video Drop Area
+        const videoDropArea = document.getElementById('video-drop-area');
+        const videoInput = document.getElementById('video-input');
+        const videoPreview = document.getElementById('video-preview');
+        const videoDropMessage = document.getElementById('video-drop-message');
+        const videoPreviewPlayer = document.getElementById('video-preview-player');
+        const videoInfo = document.getElementById('video-info');
+        const changeVideo = document.getElementById('change-video');
+        
+        // Thumbnail Drop Area
+        const thumbnailDropArea = document.getElementById('thumbnail-drop-area');
+        const thumbnailInput = document.getElementById('thumbnail-input');
+        const thumbnailPreview = document.getElementById('thumbnail-preview');
+        const thumbnailDropMessage = document.getElementById('thumbnail-drop-message');
+        const thumbnailPreviewImg = document.getElementById('thumbnail-preview-img');
+        const thumbnailInfo = document.getElementById('thumbnail-info');
+        const changeThumbnail = document.getElementById('change-thumbnail');
+        
+        // Upload Form
+        const uploadForm = document.getElementById('upload-form');
+        const uploadButton = document.getElementById('upload-button');
+        const progressContainer = document.getElementById('progress-container');
+        const uploadProgress = document.getElementById('upload-progress');
+        const progressStatus = document.getElementById('progress-status');
+        const uploadAlert = document.getElementById('upload-alert');
+        
+        // Add error indicator to drop area when validation fails
+        function showVideoError() {
+            videoDropArea.classList.add('border-danger');
+            uploadAlert.classList.remove('d-none');
+            uploadAlert.textContent = 'Please select a video file to upload';
+            videoDropArea.scrollIntoView({ behavior: 'smooth' });
+        }
+        
+        function clearErrors() {
+            videoDropArea.classList.remove('border-danger');
+            uploadAlert.classList.add('d-none');
+        }
+        
+        // Set up video drop area
+        videoDropArea.addEventListener('click', function() {
+            if (videoDropMessage.style.display !== 'none') {
+                videoInput.click();
+            }
+        });
+        
+        videoDropArea.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            videoDropArea.classList.add('border-primary');
+        });
+        
+        videoDropArea.addEventListener('dragleave', function() {
+            videoDropArea.classList.remove('border-primary');
+        });
+        
+        videoDropArea.addEventListener('drop', function(e) {
+            e.preventDefault();
+            videoDropArea.classList.remove('border-primary');
+            
+            if (e.dataTransfer.files.length > 0) {
+                handleVideoFile(e.dataTransfer.files[0]);
+            }
+        });
+        
+        videoInput.addEventListener('change', function() {
+            if (videoInput.files.length > 0) {
+                handleVideoFile(videoInput.files[0]);
+            }
+        });
+        
+        changeVideo.addEventListener('click', function() {
+            videoFile = null;
+            videoPreview.classList.add('d-none');
+            videoDropMessage.classList.remove('d-none');
+            videoInput.value = '';
+        });
+        
+        // Set up thumbnail drop area
+        thumbnailDropArea.addEventListener('click', function() {
+            if (thumbnailDropMessage.style.display !== 'none') {
+                thumbnailInput.click();
+            }
+        });
+        
+        thumbnailDropArea.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            thumbnailDropArea.classList.add('border-primary');
+        });
+        
+        thumbnailDropArea.addEventListener('dragleave', function() {
+            thumbnailDropArea.classList.remove('border-primary');
+        });
+        
+        thumbnailDropArea.addEventListener('drop', function(e) {
+            e.preventDefault();
+            thumbnailDropArea.classList.remove('border-primary');
+            
+            if (e.dataTransfer.files.length > 0) {
+                handleThumbnailFile(e.dataTransfer.files[0]);
+            }
+        });
+        
+        thumbnailInput.addEventListener('change', function() {
+            if (thumbnailInput.files.length > 0) {
+                handleThumbnailFile(thumbnailInput.files[0]);
+            }
+        });
+        
+        changeThumbnail.addEventListener('click', function() {
+            thumbnailFile = null;
+            thumbnailPreview.classList.add('d-none');
+            thumbnailDropMessage.classList.remove('d-none');
+            thumbnailInput.value = '';
+        });
+        
+        // Handle video file selection
+        function handleVideoFile(file) {
+            clearErrors();
+            
+            // Check if file is a video
+            if (!file.type.startsWith('video/')) {
+                uploadAlert.textContent = 'Please select a valid video file';
+                uploadAlert.classList.remove('d-none');
+                return;
+            }
+            
+            // Check file size (max 100MB)
+            if (file.size > 100 * 1024 * 1024) {
+                uploadAlert.textContent = 'File is too large. Maximum size is 100MB';
+                uploadAlert.classList.remove('d-none');
+                return;
+            }
+            
+            videoFile = file;
+            
+            // Create video preview
+            const videoURL = URL.createObjectURL(file);
+            videoPreviewPlayer.src = videoURL;
+            
+            // Show video info
+            videoInfo.textContent = `${file.name} (${formatFileSize(file.size)})`;
+            
+            // Show preview, hide drop message
+            videoPreview.classList.remove('d-none');
+            videoDropMessage.classList.add('d-none');
+        }
+        
+        // Handle thumbnail file selection
+        function handleThumbnailFile(file) {
+            // Check if file is an image
+            if (!file.type.startsWith('image/')) {
+                uploadAlert.textContent = 'Please select a valid image file';
+                uploadAlert.classList.remove('d-none');
+                return;
+            }
+            
+            thumbnailFile = file;
+            
+            // Create thumbnail preview
+            const thumbnailURL = URL.createObjectURL(file);
+            thumbnailPreviewImg.src = thumbnailURL;
+            
+            // Show thumbnail info
+            thumbnailInfo.textContent = `${file.name} (${formatFileSize(file.size)})`;
+            
+            // Show preview, hide drop message
+            thumbnailPreview.classList.remove('d-none');
+            thumbnailDropMessage.classList.add('d-none');
+        }
+        
+        // Format file size in KB, MB
+        function formatFileSize(bytes) {
+            if (bytes < 1024) {
+                return bytes + ' bytes';
+            } else if (bytes < 1024 * 1024) {
+                return (bytes / 1024).toFixed(1) + ' KB';
+            } else {
+                return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+            }
+        }
+        
+        // Handle form submission
+        uploadForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            clearErrors();
+            
+            // Validate form
+            if (!videoFile) {
+                showVideoError();
+                return;
+            }
+            
+            const title = document.getElementById('title').value.trim();
+            if (!title) {
+                uploadAlert.textContent = 'Please enter a title for your video';
+                uploadAlert.classList.remove('d-none');
+                document.getElementById('title').focus();
+                return;
+            }
+            
+            // Create FormData
+            const formData = new FormData();
+            formData.append('video_file', videoFile);
+            if (thumbnailFile) {
+                formData.append('thumbnail_file', thumbnailFile);
+            }
+            formData.append('title', title);
+            formData.append('description', document.getElementById('description').value.trim());
+            formData.append('is_private', document.getElementById('is_private').checked);
+            
+            // Show progress
+            uploadButton.disabled = true;
+            progressContainer.classList.remove('d-none');
+            
+            try {
+                // Use XMLHttpRequest for upload progress tracking
+                const xhr = new XMLHttpRequest();
+                
+                // Create a Promise to handle the response
+                const uploadPromise = new Promise((resolve, reject) => {
+                    // Set up progress tracking
+                    xhr.upload.addEventListener('progress', (event) => {
+                        if (event.lengthComputable) {
+                            const percentComplete = Math.round((event.loaded / event.total) * 100);
+                            uploadProgress.style.width = percentComplete + '%';
+                            progressStatus.textContent = `Uploading: ${percentComplete}%`;
+                        }
+                    });
+                    
+                    // Handle response
+                    xhr.onload = function() {
+                        if (xhr.status >= 200 && xhr.status < 300) {
+                            try {
+                                const data = JSON.parse(xhr.responseText);
+                                resolve(data);
+                            } catch (e) {
+                                reject(new Error('Invalid JSON response'));
+                            }
+                        } else {
+                            try {
+                                const errorData = JSON.parse(xhr.responseText);
+                                // Check for FFmpeg error specifically
+                                if (errorData.detail && (errorData.detail.includes("FFmpeg") || errorData.detail.includes("thumbnail"))) {
+                                    // Allow the upload to proceed even with FFmpeg issues
+                                    resolve(errorData);
+                                    uploadAlert.textContent = 'Warning: Video uploaded but thumbnail generation failed. A default thumbnail will be used.';
+                                    uploadAlert.className = 'alert alert-warning';
+                                    uploadAlert.classList.remove('d-none');
+                                    setTimeout(() => {
+                                        window.location.href = `/video/${errorData.id}`;
+                                    }, 3000);
+                                } else {
+                                    reject(new Error(errorData.detail || `Upload failed (${xhr.status})`));
+                                }
+                            } catch (e) {
+                                reject(new Error(`Upload failed (${xhr.status})`));
+                            }
+                        }
+                    };
+                    
+                    // Handle network errors
+                    xhr.onerror = function() {
+                        reject(new Error('Network error occurred'));
+                    };
+                });
+                
+                // Open request
+                xhr.open('POST', '/videos/');
+                
+                // Add auth headers
+                const token = AUTH.getToken();
+                if (token) {
+                    xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+                }
+                
+                // Send the request
+                xhr.send(formData);
+                
+                // Wait for the response
+                const data = await uploadPromise;
+                
+                // On success, redirect to the video page after a brief success message
+                uploadAlert.textContent = 'Video uploaded successfully! Redirecting...';
+                uploadAlert.className = 'alert alert-success';
+                uploadAlert.classList.remove('d-none');
+                
+                setTimeout(() => {
+                    window.location.href = `/video/${data.id}`;
+                }, 1500);
+                
+            } catch (error) {
+                console.error('Upload error:', error);
+                uploadAlert.textContent = 'Error uploading video: ' + error.message;
+                uploadAlert.className = 'alert alert-danger';
+                uploadAlert.classList.remove('d-none');
+                uploadButton.disabled = false;
+                progressContainer.classList.add('d-none');
+            }
+        });
+    });
+</script>
+{% endblock %} 

@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+
+{% block title %}Log In - VideoStreamingHub{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-body p-4">
+                    <h1 class="h3 mb-4 text-center">Log In</h1>
+                    
+                    <div id="login-alert" class="alert alert-danger d-none" role="alert"></div>
+                    <div id="login-debug" class="alert alert-info d-none" role="alert"></div>
+                    
+                    <form id="login-form">
+                        <div class="mb-3">
+                            <label for="login-username" class="form-label">Username</label>
+                            <input type="text" class="form-control" id="login-username" name="username" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="login-password" class="form-label">Password</label>
+                            <input type="password" class="form-control" id="login-password" name="password" required>
+                        </div>
+                        
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary">Log In</button>
+                        </div>
+                    </form>
+                    
+                    <div class="text-center mt-3">
+                        <p>Don't have an account? <a href="/register">Register</a></p>
+                    </div>
+                    
+                    <!-- Quick login buttons for testing -->
+                    <div class="mt-4 pt-3 border-top">
+                        <h5 class="mb-3">Quick Login (For Testing)</h5>
+                        <div class="d-grid gap-2">
+                            <button onclick="quickLogin('admin', 'admin')" class="btn btn-sm btn-outline-secondary">Admin User</button>
+                            <button onclick="quickLogin('test', 'test')" class="btn btn-sm btn-outline-secondary">Test User</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Redirect to home if already logged in
+        if (AUTH.isLoggedIn()) {
+            const urlParams = new URLSearchParams(window.location.search);
+            const redirectUrl = urlParams.get('redirect');
+            window.location.href = redirectUrl || '/';
+            return;
+        }
+        
+        document.getElementById('login-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const usernameEl = document.getElementById('login-username');
+            const passwordEl = document.getElementById('login-password');
+            const alertEl = document.getElementById('login-alert');
+            const debugEl = document.getElementById('login-debug');
+            
+            // Clear previous messages
+            alertEl.classList.add('d-none');
+            debugEl.classList.add('d-none');
+            
+            // Get form values
+            const username = usernameEl.value.trim();
+            const password = passwordEl.value;
+            
+            // Debug info
+            debugEl.innerHTML = `Attempting login with:<br>Username: "${username}"<br>Password length: ${password.length}`;
+            debugEl.classList.remove('d-none');
+            
+            try {
+                // Create form data
+                const formData = new FormData();
+                formData.append('username', username);
+                formData.append('password', password);
+                
+                // Show request details
+                debugEl.innerHTML += `<br><br>Sending POST request to /token...`;
+                
+                // Make the request
+                const response = await fetch('/token', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                // Get response as text first for debugging
+                const responseText = await response.text();
+                debugEl.innerHTML += `<br><br>Response status: ${response.status} ${response.statusText}`;
+                debugEl.innerHTML += `<br>Response body: ${responseText.substring(0, 100)}${responseText.length > 100 ? '...' : ''}`;
+                
+                // Parse JSON if possible
+                let data = {};
+                try {
+                    data = JSON.parse(responseText);
+                } catch (parseError) {
+                    debugEl.innerHTML += `<br><br>Error parsing JSON: ${parseError.message}`;
+                }
+                
+                if (!response.ok) {
+                    throw new Error(data.detail || `Login failed (${response.status})`);
+                }
+                
+                // Store the token in localStorage
+                if (data.access_token) {
+                    AUTH.setToken(data.access_token);
+                    debugEl.innerHTML += `<br><br>Login successful! Token received.`;
+                    
+                    // Success message
+                    alertEl.textContent = 'Login successful! Redirecting...';
+                    alertEl.classList.remove('alert-danger');
+                    alertEl.classList.add('alert-success');
+                    alertEl.classList.remove('d-none');
+                    
+                    // Check if there's a redirect parameter
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const redirectUrl = urlParams.get('redirect');
+                    
+                    // Redirect to the specified URL or home page after a delay
+                    setTimeout(() => {
+                        window.location.href = redirectUrl || '/';
+                    }, 1500);
+                } else {
+                    throw new Error('No access token received');
+                }
+                
+            } catch (error) {
+                console.error('Login error:', error);
+                alertEl.textContent = error.message;
+                alertEl.classList.remove('d-none');
+                debugEl.innerHTML += `<br><br>Error: ${error.message}`;
+            }
+        });
+    });
+    
+    // Function for quick login buttons
+    function quickLogin(username, password) {
+        document.getElementById('login-username').value = username;
+        document.getElementById('login-password').value = password;
+        document.getElementById('login-form').dispatchEvent(new Event('submit'));
+    }
+</script>
+{% endblock %} 

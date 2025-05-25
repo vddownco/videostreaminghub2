@@ -1,0 +1,330 @@
+{% extends "base.html" %}
+
+{% block title %}VideoStreamingHub - Home{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body p-0">
+                <div id="featured-carousel" class="carousel slide" data-bs-ride="carousel">
+                    <div class="carousel-indicators">
+                        <button type="button" data-bs-target="#featured-carousel" data-bs-slide-to="0" class="active"></button>
+                        <button type="button" data-bs-target="#featured-carousel" data-bs-slide-to="1"></button>
+                        <button type="button" data-bs-target="#featured-carousel" data-bs-slide-to="2"></button>
+                    </div>
+                    <div class="carousel-inner">
+                        <div class="carousel-item active">
+                            <div class="position-relative" style="height: 400px; background-color: #000;">
+                                <img src="https://via.placeholder.com/1200x400" class="d-block w-100 h-100" style="object-fit: cover;" alt="Featured Video">
+                                <div class="carousel-caption text-start">
+                                    <h2>Welcome to VideoStreamingHub</h2>
+                                    <p>Discover and share amazing videos with the world.</p>
+                                    <a href="/trending" class="btn btn-primary">Explore Now</a>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="carousel-item">
+                            <div class="position-relative" style="height: 400px; background-color: #000;">
+                                <img src="https://via.placeholder.com/1200x400" class="d-block w-100 h-100" style="object-fit: cover;" alt="Upload Video">
+                                <div class="carousel-caption text-start">
+                                    <h2>Share Your Content</h2>
+                                    <p>Upload and share your videos with our community.</p>
+                                    <a href="/upload" class="btn btn-primary">Upload Now</a>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="carousel-item">
+                            <div class="position-relative" style="height: 400px; background-color: #000;">
+                                <img src="https://via.placeholder.com/1200x400" class="d-block w-100 h-100" style="object-fit: cover;" alt="Join Community">
+                                <div class="carousel-caption text-start">
+                                    <h2>Join Our Community</h2>
+                                    <p>Create an account to get the full experience.</p>
+                                    <a href="/register" class="btn btn-primary">Sign Up</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <button class="carousel-control-prev" type="button" data-bs-target="#featured-carousel" data-bs-slide="prev">
+                        <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                        <span class="visually-hidden">Previous</span>
+                    </button>
+                    <button class="carousel-control-next" type="button" data-bs-target="#featured-carousel" data-bs-slide="next">
+                        <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                        <span class="visually-hidden">Next</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Trending Videos Section -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h2>
+                <i class="fas fa-fire text-danger me-2"></i>
+                Trending Videos
+            </h2>
+            <a href="/trending" class="btn btn-outline-primary">View All</a>
+        </div>
+        <div class="row" id="trending-videos">
+            <!-- Videos will be loaded via JavaScript -->
+            <div class="col-12 text-center py-5">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Latest Videos Section -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h2>
+                <i class="fas fa-clock text-primary me-2"></i>
+                Latest Videos
+            </h2>
+            <a href="/latest" class="btn btn-outline-primary">View All</a>
+        </div>
+        <div class="row" id="latest-videos">
+            <!-- Videos will be loaded via JavaScript -->
+            <div class="col-12 text-center py-5">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Categories Section -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h2>
+                <i class="fas fa-list text-success me-2"></i>
+                Categories
+            </h2>
+        </div>
+        <div class="row">
+            <div class="col-6 col-md-4 col-lg-3 mb-4">
+                <div class="card h-100 border-0 shadow-sm category-card">
+                    <div class="card-body text-center">
+                        <i class="fas fa-music fa-3x mb-3 text-primary"></i>
+                        <h5 class="card-title">Music</h5>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-md-4 col-lg-3 mb-4">
+                <div class="card h-100 border-0 shadow-sm category-card">
+                    <div class="card-body text-center">
+                        <i class="fas fa-gamepad fa-3x mb-3 text-danger"></i>
+                        <h5 class="card-title">Gaming</h5>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-md-4 col-lg-3 mb-4">
+                <div class="card h-100 border-0 shadow-sm category-card">
+                    <div class="card-body text-center">
+                        <i class="fas fa-graduation-cap fa-3x mb-3 text-success"></i>
+                        <h5 class="card-title">Education</h5>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-md-4 col-lg-3 mb-4">
+                <div class="card h-100 border-0 shadow-sm category-card">
+                    <div class="card-body text-center">
+                        <i class="fas fa-film fa-3x mb-3 text-warning"></i>
+                        <h5 class="card-title">Entertainment</h5>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-md-4 col-lg-3 mb-4">
+                <div class="card h-100 border-0 shadow-sm category-card">
+                    <div class="card-body text-center">
+                        <i class="fas fa-utensils fa-3x mb-3 text-info"></i>
+                        <h5 class="card-title">Food</h5>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-md-4 col-lg-3 mb-4">
+                <div class="card h-100 border-0 shadow-sm category-card">
+                    <div class="card-body text-center">
+                        <i class="fas fa-dumbbell fa-3x mb-3 text-dark"></i>
+                        <h5 class="card-title">Sports</h5>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-md-4 col-lg-3 mb-4">
+                <div class="card h-100 border-0 shadow-sm category-card">
+                    <div class="card-body text-center">
+                        <i class="fas fa-code fa-3x mb-3 text-secondary"></i>
+                        <h5 class="card-title">Technology</h5>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-md-4 col-lg-3 mb-4">
+                <div class="card h-100 border-0 shadow-sm category-card">
+                    <div class="card-body text-center">
+                        <i class="fas fa-palette fa-3x mb-3 text-purple"></i>
+                        <h5 class="card-title">Art</h5>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Fetch trending videos
+    fetch('/search/trending?limit=4')
+        .then(response => response.json())
+        .then(videos => {
+            const trendingContainer = document.getElementById('trending-videos');
+            
+            if (videos.length === 0) {
+                trendingContainer.innerHTML = `
+                    <div class="col-12 text-center py-5">
+                        <p class="text-muted">No trending videos available.</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            trendingContainer.innerHTML = '';
+            
+            videos.forEach(video => {
+                const videoCard = createVideoCard(video);
+                trendingContainer.appendChild(videoCard);
+            });
+        })
+        .catch(error => {
+            console.error('Error fetching trending videos:', error);
+            document.getElementById('trending-videos').innerHTML = `
+                <div class="col-12 text-center py-5">
+                    <p class="text-danger">Failed to load trending videos.</p>
+                </div>
+            `;
+        });
+        
+    // Fetch latest videos
+    fetch('/search/latest?limit=4')
+        .then(response => response.json())
+        .then(videos => {
+            const latestContainer = document.getElementById('latest-videos');
+            
+            if (videos.length === 0) {
+                latestContainer.innerHTML = `
+                    <div class="col-12 text-center py-5">
+                        <p class="text-muted">No videos available.</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            latestContainer.innerHTML = '';
+            
+            videos.forEach(video => {
+                const videoCard = createVideoCard(video);
+                latestContainer.appendChild(videoCard);
+            });
+        })
+        .catch(error => {
+            console.error('Error fetching latest videos:', error);
+            document.getElementById('latest-videos').innerHTML = `
+                <div class="col-12 text-center py-5">
+                    <p class="text-danger">Failed to load latest videos.</p>
+                </div>
+            `;
+        });
+        
+    // Helper function to create video cards
+    function createVideoCard(video) {
+        const col = document.createElement('div');
+        col.className = 'col-sm-6 col-md-6 col-lg-3 mb-4';
+        
+        // Format video duration
+        const hours = Math.floor(video.duration / 3600);
+        const minutes = Math.floor((video.duration % 3600) / 60);
+        const seconds = video.duration % 60;
+        const formattedDuration = hours > 0 
+            ? `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
+            : `${minutes}:${seconds.toString().padStart(2, '0')}`;
+        
+        // Format view count
+        const formattedViews = video.views >= 1000000
+            ? `${(video.views / 1000000).toFixed(1)}M views`
+            : video.views >= 1000
+                ? `${(video.views / 1000).toFixed(1)}K views`
+                : `${video.views} views`;
+        
+        // Calculate time ago
+        const timeAgo = getTimeAgo(new Date(video.created_at));
+        
+        col.innerHTML = `
+            <div class="card h-100 border-0 shadow-sm video-card">
+                <div class="position-relative">
+                    <a href="/video/${video.id}">
+                        <img src="/videos/thumbnail/${video.thumbnail_path}" class="card-img-top" alt="${video.title}">
+                        <span class="position-absolute bottom-0 end-0 bg-dark text-white py-1 px-2 m-2 rounded">${formattedDuration}</span>
+                    </a>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex">
+                        <img src="/static/profile_pictures/${video.uploader.profile_picture || 'default.jpg'}" class="rounded-circle me-2" width="40" height="40" alt="${video.uploader.username}">
+                        <div>
+                            <h5 class="card-title mb-0">
+                                <a href="/video/${video.id}" class="text-decoration-none text-dark">${video.title}</a>
+                            </h5>
+                            <p class="card-text mb-0">
+                                <a href="/users/${video.uploader.username}" class="text-decoration-none text-secondary">${video.uploader.username}</a>
+                            </p>
+                            <p class="card-text text-muted small">${formattedViews} • ${timeAgo}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        return col;
+    }
+    
+    // Helper function to calculate time ago
+    function getTimeAgo(date) {
+        const seconds = Math.floor((new Date() - date) / 1000);
+        
+        let interval = seconds / 31536000;
+        if (interval > 1) {
+            return Math.floor(interval) + " years ago";
+        }
+        
+        interval = seconds / 2592000;
+        if (interval > 1) {
+            return Math.floor(interval) + " months ago";
+        }
+        
+        interval = seconds / 86400;
+        if (interval > 1) {
+            return Math.floor(interval) + " days ago";
+        }
+        
+        interval = seconds / 3600;
+        if (interval > 1) {
+            return Math.floor(interval) + " hours ago";
+        }
+        
+        interval = seconds / 60;
+        if (interval > 1) {
+            return Math.floor(interval) + " minutes ago";
+        }
+        
+        return Math.floor(seconds) + " seconds ago";
+    }
+</script>
+{% endblock %} 

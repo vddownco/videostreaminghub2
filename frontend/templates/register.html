@@ -1,0 +1,216 @@
+{% extends "base.html" %}
+
+{% block title %}Register - VideoStreamingHub{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-body p-4">
+                    <h1 class="h3 mb-4 text-center">Create an Account</h1>
+                    
+                    <div id="register-alert" class="alert alert-danger d-none" role="alert"></div>
+                    <div id="debug-info" class="alert alert-info d-none" role="alert"></div>
+                    
+                    <form id="register-form">
+                        <div class="mb-3">
+                            <label for="register-username" class="form-label">Username</label>
+                            <input type="text" class="form-control" id="register-username" name="username" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="register-email" class="form-label">Email</label>
+                            <input type="email" class="form-control" id="register-email" name="email" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="register-fullname" class="form-label">Full Name</label>
+                            <input type="text" class="form-control" id="register-fullname" name="full_name">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="register-password" class="form-label">Password</label>
+                            <input type="password" class="form-control" id="register-password" name="password" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="register-bio" class="form-label">Bio (Optional)</label>
+                            <textarea class="form-control" id="register-bio" name="bio" rows="3"></textarea>
+                        </div>
+                        
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary">Register</button>
+                        </div>
+                    </form>
+                    
+                    <div class="text-center mt-3">
+                        <p>Already have an account? <a href="/login">Log In</a></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Wait for DOM to be fully loaded
+    document.addEventListener('DOMContentLoaded', function() {
+        // Redirect to home if already logged in
+        if (AUTH.isLoggedIn()) {
+            window.location.href = '/';
+            return;
+        }
+        
+        const form = document.getElementById('register-form');
+        const alertEl = document.getElementById('register-alert');
+        const debugEl = document.getElementById('debug-info');
+        
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            // Clear previous alerts
+            alertEl.classList.add('d-none');
+            debugEl.classList.add('d-none');
+            
+            // Directly get form elements by ID
+            const usernameInput = document.getElementById('register-username');
+            const emailInput = document.getElementById('register-email');
+            const fullNameInput = document.getElementById('register-fullname');
+            const passwordInput = document.getElementById('register-password');
+            const bioInput = document.getElementById('register-bio');
+            
+            // Get raw values - use empty string as fallback if element not found
+            const rawUsername = usernameInput ? usernameInput.value : '';
+            const rawEmail = emailInput ? emailInput.value : '';
+            const rawPassword = passwordInput ? passwordInput.value : '';
+            const rawFullName = fullNameInput ? fullNameInput.value : '';
+            const rawBio = bioInput ? bioInput.value : '';
+            
+            // Show debug info
+            debugEl.innerHTML = `Raw values:<br>
+                Username: "${rawUsername}"<br>
+                Email: "${rawEmail}"<br>
+                Password length: ${rawPassword.length}<br>
+                Full Name: "${rawFullName}"<br>
+                Bio length: ${rawBio.length}`;
+            debugEl.classList.remove('d-none');
+            
+            // Trim values
+            const username = rawUsername.trim();
+            const email = rawEmail.trim();
+            const password = rawPassword;
+            
+            // Check for "undefined" string (happens due to JS errors)
+            if (username === "undefined" || username === "") {
+                alertEl.textContent = "Username is required and cannot be empty";
+                alertEl.classList.remove('d-none');
+                if (usernameInput) usernameInput.focus();
+                return;
+            }
+            
+            if (email === "undefined" || email === "") {
+                alertEl.textContent = "Email is required and cannot be empty";
+                alertEl.classList.remove('d-none');
+                if (emailInput) emailInput.focus();
+                return;
+            }
+            
+            if (password === "undefined" || password === "") {
+                alertEl.textContent = "Password is required and cannot be empty";
+                alertEl.classList.remove('d-none');
+                if (passwordInput) passwordInput.focus();
+                return;
+            }
+            
+            // Get optional fields safely
+            let full_name = rawFullName.trim();
+            if (full_name === '' || full_name === "undefined") full_name = null;
+            
+            let bio = rawBio.trim();
+            if (bio === '' || bio === "undefined") bio = null;
+            
+            // Create the payload object
+            const payload = {
+                username: username,
+                email: email,
+                password: password
+            };
+            
+            // Only add optional fields if they have a value
+            if (full_name) payload.full_name = full_name;
+            if (bio) payload.bio = bio;
+            
+            // Add the payload to debug info
+            debugEl.innerHTML += `<br><br>Payload:<br>${JSON.stringify(payload, null, 2).replace(/\n/g, '<br>').replace(/ /g, '&nbsp;')}`;
+            
+            // Submit the form
+            submitRegistration(payload, alertEl, debugEl);
+        });
+    });
+    
+    async function submitRegistration(payload, alertEl, debugEl) {
+        try {
+            console.log('Sending registration data:', JSON.stringify(payload));
+            
+            const response = await fetch('/register', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(payload)
+            });
+            
+            let data = {};
+            try {
+                data = await response.json();
+            } catch (err) {
+                console.error('Error parsing JSON response:', err);
+                debugEl.innerHTML += `<br><br>Error parsing response: ${err.message}`;
+            }
+            
+            debugEl.innerHTML += `<br><br>Response status: ${response.status} ${response.statusText}`;
+            
+            if (!response.ok) {
+                console.error('Registration error:', data);
+                
+                // Handle validation errors
+                if (data.detail && Array.isArray(data.detail)) {
+                    // Format Pydantic validation errors
+                    const errorMessages = data.detail.map(error => {
+                        return `${error.loc.slice(1).join('.')} - ${error.msg}`;
+                    }).join('\n');
+                    alertEl.innerHTML = errorMessages.replace(/\n/g, '<br>');
+                } else {
+                    alertEl.textContent = typeof data.detail === 'object' 
+                        ? JSON.stringify(data.detail) 
+                        : (data.detail || 'Registration failed');
+                }
+                alertEl.classList.remove('d-none');
+                return;
+            }
+            
+            console.log('Registration successful:', data);
+            
+            // Show success message
+            alertEl.textContent = 'Registration successful! Redirecting to login...';
+            alertEl.classList.remove('alert-danger');
+            alertEl.classList.add('alert-success');
+            alertEl.classList.remove('d-none');
+            
+            // Redirect to login page after a short delay
+            setTimeout(() => {
+                window.location.href = '/login';
+            }, 2000);
+            
+        } catch (error) {
+            console.error('Error during registration:', error);
+            alertEl.textContent = error.toString();
+            alertEl.classList.remove('d-none');
+            debugEl.innerHTML += `<br><br>Exception: ${error.toString()}`;
+        }
+    }
+</script>
+{% endblock %} 
