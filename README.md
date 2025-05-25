@@ -39,8 +39,8 @@ A modern, feature-rich video streaming platform built with FastAPI, SQLAlchemy, 
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/yourusername/VideoStreamingHub.git
-   cd VideoStreamingHub
+   git clone https://github.com/leefarhadaman/videostreaminghub.git
+   cd videostreaminghub
    ```
 
 2. **Create and activate a virtual environment**
