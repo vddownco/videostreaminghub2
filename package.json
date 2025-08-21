@@ -1,0 +1,11 @@
+{
+  "name": "videostreaminghub",
+  "version": "1.0.0",
+  "description": "A modern video streaming platform built with FastAPI and Bootstrap",
+  "scripts": {
+    "build": "echo 'No build process required - using static frontend files'"
+  },
+  "keywords": ["video", "streaming", "fastapi", "bootstrap"],
+  "author": "",
+  "license": "MIT"
+}
